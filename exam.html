@@ -296,6 +296,64 @@
             align-items: center;
         }
 
+        .random-exam-footer.mobile {
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .random-exam-footer.mobile .random-exam-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .random-exam-footer.mobile .random-exam-btn {
+            flex: 1;
+            max-width: 120px;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .random-exam-footer.mobile .random-exam-btn.primary {
+            order: -1;
+            max-width: none;
+            flex: none;
+            width: 100%;
+            margin-bottom: 10px;
+            height: 40px;
+            line-height: 1;
+        }
+
+        .random-exam-footer.mobile .random-exam-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .random-exam-footer.mobile .random-exam-buttons .random-exam-btn {
+            flex: 1;
+            max-width: 120px;
+            padding: 10px 16px;
+            font-size: 14px;
+            height: 40px;
+            line-height: 1;
+        }
+
+        .random-exam-footer.mobile .random-exam-buttons .random-exam-btn.primary {
+            max-width: 160px;
+        }
+
+        .random-exam-footer.mobile .random-exam-actions {
+            display: none !important;
+        }
+
+        .random-exam-footer.mobile .random-exam-progress {
+            text-align: center;
+            font-size: 14px;
+        }
+
         .random-exam-progress {
             font-size: 14px;
             color: #6c757d;
@@ -1116,8 +1174,8 @@
             }
 
             .question-container {
-                padding: 20px 20px 140px 20px;
-                /* 移动端底部也留出100px空间给按钮 */
+                padding: 20px 20px 120px 20px;
+                /* 移动端底部留出120px空间给按钮 */
                 height: 600px;
                 /* 移动端设置固定高度 */
                 overflow-y: hidden;
@@ -1169,13 +1227,38 @@
                 right: 0;
                 flex-direction: column;
                 align-items: center;
-                padding: 15px 20px;
+                padding: 10px 15px;
                 border-top: 1px solid #e9ecef;
             }
 
             .btn {
                 width: 100%;
                 max-width: 300px;
+            }
+
+            /* 移动端按钮布局优化 */
+            .actions-row {
+                display: flex;
+                gap: 8px;
+                justify-content: center;
+                flex-wrap: wrap;
+                width: 100%;
+            }
+
+            .actions-row .btn {
+                flex: 1;
+                max-width: none;
+                padding: 8px 12px;
+                font-size: 14px;
+                min-width: auto;
+            }
+
+            .actions-row .btn-submit {
+                order: 0;
+                max-width: none;
+                flex: 1;
+                margin-bottom: 0;
+                align-self: auto;
             }
 
             .toast-container {
@@ -1372,6 +1455,10 @@
                         <button class="random-exam-btn secondary" onclick="closeRandomExam()">关闭</button>
                         <button class="random-exam-btn primary" id="submitRandomExamBtn" onclick="submitRandomExam()"
                             disabled>提交试卷</button>
+                    </div>
+                    <div class="random-exam-actions" style="display: none;">
+                        <button class="random-exam-btn secondary" onclick="exportStateToFile()">保存记录</button>
+                        <button class="random-exam-btn secondary" onclick="importStateFromFile()">读取记录</button>
                     </div>
                 </div>
             </div>
@@ -2610,6 +2697,21 @@
 
                 // 添加选项点击事件
                 addRandomOptionEvents();
+
+                // 移动端优化布局
+                const isMobile = window.innerWidth <= 768;
+                const examFooter = document.querySelector('.random-exam-footer');
+                if (isMobile && examFooter) {
+                    examFooter.classList.add('mobile');
+                    // 确保按钮布局正确
+                    const buttonsContainer = examFooter.querySelector('.random-exam-buttons');
+                    if (buttonsContainer) {
+                        buttonsContainer.style.display = 'flex';
+                        buttonsContainer.style.gap = '10px';
+                        buttonsContainer.style.justifyContent = 'center';
+                        buttonsContainer.style.width = '100%';
+                    }
+                }
             }
 
             // 生成随机题目选项
@@ -2820,6 +2922,21 @@
                 submitBtn.textContent = '重新开始';
                 submitBtn.onclick = startRandomExam;
 
+                // 移动端优化：确保按钮布局正确
+                const isMobile = window.innerWidth <= 768;
+                const examFooter = document.querySelector('.random-exam-footer');
+                if (isMobile && examFooter) {
+                    examFooter.classList.add('mobile');
+                    // 确保按钮布局正确
+                    const buttonsContainer = examFooter.querySelector('.random-exam-buttons');
+                    if (buttonsContainer) {
+                        buttonsContainer.style.display = 'flex';
+                        buttonsContainer.style.gap = '10px';
+                        buttonsContainer.style.justifyContent = 'center';
+                        buttonsContainer.style.width = '100%';
+                    }
+                }
+
                 showToast(`随机考试完成！得分：${totalScore}分`, 'success');
             }
 
@@ -2907,12 +3024,44 @@
             document.addEventListener('DOMContentLoaded', function () {
                 loadExamData();
                 initNavButtonState();
+                adjustMobileButtons();
             });
 
             // 窗口大小改变时重新初始化按钮状态
             window.addEventListener('resize', function () {
                 initNavButtonState();
+                adjustMobileButtons();
             });
+
+            // 调整移动端按钮布局
+            function adjustMobileButtons() {
+                const isMobile = window.innerWidth <= 768;
+                const actionsRow = document.querySelector('.actions-row');
+
+                if (isMobile && actionsRow) {
+                    // 移动端：三个按钮在同一行
+                    const prevBtn = document.getElementById('prevBtn');
+                    const submitBtn = document.getElementById('submitBtn');
+                    const nextBtn = document.getElementById('nextBtn');
+
+                    // 清空并重新添加按钮
+                    actionsRow.innerHTML = '';
+                    actionsRow.appendChild(prevBtn);
+                    actionsRow.appendChild(submitBtn);
+                    actionsRow.appendChild(nextBtn);
+                } else if (actionsRow) {
+                    // 桌面端：恢复原始布局
+                    const prevBtn = document.getElementById('prevBtn');
+                    const submitBtn = document.getElementById('submitBtn');
+                    const nextBtn = document.getElementById('nextBtn');
+
+                    // 清空并重新添加按钮
+                    actionsRow.innerHTML = '';
+                    actionsRow.appendChild(prevBtn);
+                    actionsRow.appendChild(submitBtn);
+                    actionsRow.appendChild(nextBtn);
+                }
+            }
         </script>
 </body>
 
