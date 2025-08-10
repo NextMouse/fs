@@ -3131,11 +3131,14 @@
             function generateRandomOptions(question, questionIndex) {
                 let options = '';
                 const optionMap = Array.isArray(question.optionMap) ? question.optionMap[0] : question.optionMap;
+                const isMultipleChoice = question.typeName === '多选题';
+                const inputType = isMultipleChoice ? 'checkbox' : 'radio';
+                const inputName = isMultipleChoice ? `random_question_${questionIndex}_${Math.random()}` : `random_question_${questionIndex}`;
 
                 Object.entries(optionMap).forEach(([key, value]) => {
                     options += `
                         <div class="random-option" data-question="${questionIndex}" data-option="${key}">
-                            <input type="radio" name="random_question_${questionIndex}" value="${key}" style="margin-right: 10px; pointer-events: none;">
+                            <input type="${inputType}" name="${inputName}" value="${key}" style="margin-right: 10px; pointer-events: none;">
                             <span>${key}. ${value}</span>
                         </div>
                     `;
@@ -3154,16 +3157,28 @@
 
                         const questionIndex = parseInt(this.dataset.question);
                         const optionValue = this.dataset.option;
-                        const radioInput = this.querySelector('input[type="radio"]');
+                        const input = this.querySelector('input');
+                        const question = randomExamQuestions[questionIndex];
+                        const isMultipleChoice = question.typeName === '多选题';
 
-                        // 更新单选按钮状态
-                        radioInput.checked = true;
+                        if (isMultipleChoice) {
+                            // 多选题：切换选中状态
+                            input.checked = !input.checked;
 
-                        // 更新答案
-                        randomExamAnswers[questionIndex] = optionValue;
+                            // 获取当前题目的所有选中选项
+                            const optionsContainer = document.getElementById(`randomOptions${questionIndex}`);
+                            const selectedOptions = Array.from(optionsContainer.querySelectorAll('input:checked')).map(input => input.value);
+
+                            // 更新答案（多选题答案是一个数组）
+                            randomExamAnswers[questionIndex] = selectedOptions;
+                        } else {
+                            // 单选题：直接选中
+                            input.checked = true;
+                            randomExamAnswers[questionIndex] = optionValue;
+                        }
 
                         // 更新选项样式
-                        updateRandomOptionStyles(questionIndex, optionValue);
+                        updateRandomOptionStyles(questionIndex, randomExamAnswers[questionIndex]);
 
                         // 更新进度
                         updateRandomExamProgress();
@@ -3172,21 +3187,35 @@
             }
 
             // 更新随机选项样式
-            function updateRandomOptionStyles(questionIndex, selectedOption) {
+            function updateRandomOptionStyles(questionIndex, selectedOptions) {
                 const optionsContainer = document.getElementById(`randomOptions${questionIndex}`);
                 const options = optionsContainer.querySelectorAll('.random-option');
 
                 options.forEach(option => {
                     option.classList.remove('selected');
-                    if (option.dataset.option === selectedOption) {
-                        option.classList.add('selected');
+                    const optionValue = option.dataset.option;
+
+                    if (Array.isArray(selectedOptions)) {
+                        // 多选题：检查是否在选中数组中
+                        if (selectedOptions.includes(optionValue)) {
+                            option.classList.add('selected');
+                        }
+                    } else {
+                        // 单选题：直接比较
+                        if (optionValue === selectedOptions) {
+                            option.classList.add('selected');
+                        }
                     }
                 });
             }
 
             // 更新随机考试进度
             function updateRandomExamProgress() {
-                const answeredCount = randomExamAnswers.filter(answer => answer !== null).length;
+                const answeredCount = randomExamAnswers.filter(answer => {
+                    if (answer === null) return false;
+                    if (Array.isArray(answer)) return answer.length > 0; // 多选题：检查是否有选中选项
+                    return true; // 单选题：有答案就算已答
+                }).length;
                 const progressElement = document.getElementById('randomExamProgress');
                 const submitBtn = document.getElementById('submitRandomExamBtn');
 
@@ -3207,7 +3236,19 @@
                 randomExamQuestions.forEach((question, index) => {
                     const userAnswer = randomExamAnswers[index];
                     const correctAnswer = question.answerList;
-                    const isCorrect = userAnswer && correctAnswer.includes(userAnswer);
+
+                    // 判断答案是否正确
+                    let isCorrect = false;
+                    if (userAnswer) {
+                        if (Array.isArray(userAnswer)) {
+                            // 多选题：检查所有选中的选项是否都在正确答案中，且数量一致
+                            isCorrect = userAnswer.length === correctAnswer.length &&
+                                userAnswer.every(ans => correctAnswer.includes(ans));
+                        } else {
+                            // 单选题：直接比较
+                            isCorrect = correctAnswer.includes(userAnswer);
+                        }
+                    }
 
                     if (isCorrect) {
                         totalScore += 10;
@@ -3256,7 +3297,13 @@
                     const wasCorrectBefore = wasAnsweredBefore && isAnswerCorrect(mainQuestion);
 
                     // 更新用户答案
-                    mainQuestion.userAnswer = userAnswer ? [userAnswer] : [];
+                    if (Array.isArray(userAnswer)) {
+                        // 多选题：直接使用数组
+                        mainQuestion.userAnswer = userAnswer;
+                    } else {
+                        // 单选题：包装成数组
+                        mainQuestion.userAnswer = userAnswer ? [userAnswer] : [];
+                    }
 
                     // 添加到已答题集合
                     answeredQuestions.add(mainQuestionIndex);
@@ -3316,7 +3363,11 @@
 
                         if (result.correctAnswer.includes(optionValue)) {
                             option.classList.add('correct');
-                        } else if (optionValue === result.userAnswer) {
+                        } else if (Array.isArray(result.userAnswer) && result.userAnswer.includes(optionValue)) {
+                            // 多选题：检查用户选中的错误选项
+                            option.classList.add('incorrect');
+                        } else if (result.userAnswer === optionValue) {
+                            // 单选题：检查用户选中的错误选项
                             option.classList.add('incorrect');
                         }
                     });
