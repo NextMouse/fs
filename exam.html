@@ -595,6 +595,14 @@
             border-color: #dc3545;
         }
 
+        .option.disabled {
+            cursor: not-allowed;
+        }
+
+        .option.disabled input {
+            cursor: not-allowed;
+        }
+
         .option input[type="radio"],
         .option input[type="checkbox"] {
             margin-right: 10px;
@@ -873,6 +881,15 @@
             border-radius: 3px;
             font-family: monospace;
             font-size: 12px;
+        }
+
+        .ai-message.assistant img {
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: block;
         }
 
         .ai-message.loading {
@@ -1359,6 +1376,10 @@
                 align-items: center;
             }
 
+            .option.disabled {
+                cursor: not-allowed;
+            }
+
 
 
             .loading-text {
@@ -1422,6 +1443,14 @@
             .ai-message.assistant li {
                 margin: 3px 0;
                 font-size: 12px;
+            }
+
+            .ai-message.assistant img {
+                max-width: 100%;
+                height: auto;
+                margin: 8px 0;
+                border-radius: 4px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
             }
         }
     </style>
@@ -1866,6 +1895,12 @@
                 // 清除答案显示和所有选项样式
                 document.getElementById('answerDisplay').classList.remove('show');
 
+                // 检查当前题目是否已作答且不在重答错题或随机考试模式
+                const isAnswered = answeredQuestions.has(currentQuestionIndex);
+                const isRetryMode = window.isRetryMode || false;
+                const isRandomExamMode = window.isRandomExamMode || false;
+                const canSelect = !isAnswered || isRetryMode || isRandomExamMode;
+
                 // 处理 optionMap 数组结构
                 if (Array.isArray(question.optionMap)) {
                     // 如果是数组，取第一个元素（包含选项的对象）
@@ -1873,7 +1908,14 @@
                     Object.entries(options).forEach(([key, value]) => {
                         const optionDiv = document.createElement('div');
                         optionDiv.className = 'option';
-                        optionDiv.onclick = (event) => selectOption(key, event);
+
+                        // 只有在允许选择时才添加点击事件
+                        if (canSelect) {
+                            optionDiv.onclick = (event) => selectOption(key, event);
+                        } else {
+                            optionDiv.classList.add('disabled');
+                            optionDiv.style.cursor = 'not-allowed';
+                        }
 
                         const input = document.createElement('input');
                         // 根据题目类型设置input类型
@@ -1887,6 +1929,11 @@
                         }
                         input.value = key;
                         input.checked = selectedAnswer.includes(key); // 检查是否已选中
+
+                        // 如果已作答且不允许重新选择，禁用input
+                        if (!canSelect) {
+                            input.disabled = true;
+                        }
 
                         const label = document.createElement('span');
                         label.textContent = `${key}. ${value}`;
@@ -1900,7 +1947,14 @@
                     Object.entries(question.optionMap).forEach(([key, value]) => {
                         const optionDiv = document.createElement('div');
                         optionDiv.className = 'option';
-                        optionDiv.onclick = (event) => selectOption(key, event);
+
+                        // 只有在允许选择时才添加点击事件
+                        if (canSelect) {
+                            optionDiv.onclick = (event) => selectOption(key, event);
+                        } else {
+                            optionDiv.classList.add('disabled');
+                            optionDiv.style.cursor = 'not-allowed';
+                        }
 
                         const input = document.createElement('input');
                         // 根据题目类型设置input类型
@@ -1914,6 +1968,11 @@
                         }
                         input.value = key;
                         input.checked = selectedAnswer.includes(key); // 检查是否已选中
+
+                        // 如果已作答且不允许重新选择，禁用input
+                        if (!canSelect) {
+                            input.disabled = true;
+                        }
 
                         const label = document.createElement('span');
                         label.textContent = `${key}. ${value}`;
@@ -1933,10 +1992,33 @@
                 }
             }
 
+            // 检查题目是否为错题
+            function isWrongQuestion(questionIndex) {
+                if (!answeredQuestions.has(questionIndex)) {
+                    return false;
+                }
+                const question = examData[questionIndex];
+                const userAnswer = question.userAnswer || [];
+                return question.answerList.length !== userAnswer.length ||
+                    !question.answerList.every(ans => userAnswer.includes(ans)) ||
+                    !userAnswer.every(ans => question.answerList.includes(ans));
+            }
+
             // 选择选项
             function selectOption(option, event) {
                 const input = event.currentTarget.querySelector('input');
                 const question = examData[currentQuestionIndex];
+
+                // 检查是否允许选择
+                const isAnswered = answeredQuestions.has(currentQuestionIndex);
+                const isRetryMode = window.isRetryMode || false;
+                const isRandomExamMode = window.isRandomExamMode || false;
+                const canSelect = !isAnswered || isRetryMode || isRandomExamMode;
+
+                if (!canSelect) {
+                    showToast('该题目已作答，无法重新选择', 'warning');
+                    return;
+                }
 
                 if (question.typeName === '多选题') {
                     // 多选题：可以多选
@@ -2051,6 +2133,15 @@
             function previousQuestion() {
                 if (currentQuestionIndex > 0) {
                     currentQuestionIndex--;
+
+                    // 如果离开重答模式或随机考试模式，清除模式标志
+                    if (window.isRetryMode && !isWrongQuestion(currentQuestionIndex)) {
+                        window.isRetryMode = false;
+                    }
+                    if (window.isRandomExamMode) {
+                        window.isRandomExamMode = false;
+                    }
+
                     displayQuestion();
                     updateStats();
                     updateButtons();
@@ -2116,6 +2207,15 @@
                 // 如果找到了未回答的题目，跳转过去
                 if (nextUnansweredIndex !== -1) {
                     currentQuestionIndex = nextUnansweredIndex;
+
+                    // 如果离开重答模式或随机考试模式，清除模式标志
+                    if (window.isRetryMode && !isWrongQuestion(currentQuestionIndex)) {
+                        window.isRetryMode = false;
+                    }
+                    if (window.isRandomExamMode) {
+                        window.isRandomExamMode = false;
+                    }
+
                     displayQuestion();
                     updateStats();
                     updateButtons();
@@ -2123,6 +2223,7 @@
                     showToast(`已跳转到第 ${examData[currentQuestionIndex].num} 题（未回答）`, 'info');
                 } else {
                     // 所有题目都已回答，显示结果
+                    showToast('所有题目已完成！', 'success');
                     showResult();
                 }
             }
@@ -2160,6 +2261,10 @@
                     delete question.userAnswer;
                     // 注意：不删除 wrongCount，保留历史答错次数
                 });
+
+                // 清除模式标志
+                window.isRetryMode = false;
+                window.isRandomExamMode = false;
 
                 clearExamState();
                 document.getElementById('resultSummary').style.display = 'none';
@@ -2217,6 +2322,9 @@
                                 }
                             }
                         });
+
+                        // 设置重答模式标志
+                        window.isRetryMode = true;
 
                         // 跳转到第一个错题
                         currentQuestionIndex = wrongQuestionIndexes[0];
@@ -2740,6 +2848,11 @@
 
             // 格式化AI响应内容（支持Markdown）
             function formatAIResponse(response) {
+                // 预处理：处理图片
+                response = response.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
+                    return `<img src="${src}" alt="${alt || '图片'}" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.style.display='none'; console.error('图片加载失败:', src);">`;
+                });
+
                 // 预处理：处理代码块
                 response = response.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
                     return `<pre style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin: 10px 0; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 13px;"><code>${code.trim()}</code></pre>`;
@@ -2891,6 +3004,9 @@
                     showToast('题库题目数量不足，无法开始随机考试', 'warning');
                     return;
                 }
+
+                // 设置随机考试模式标志
+                window.isRandomExamMode = true;
 
                 // 生成随机题目（基于答错次数权重）
                 randomExamQuestions = generateRandomQuestions(10);
@@ -3247,6 +3363,9 @@
                 randomExamQuestions = [];
                 randomExamAnswers = [];
                 randomExamCompleted = false;
+
+                // 清除随机考试模式标志
+                window.isRandomExamMode = false;
             }
 
             // 切换导航显示/隐藏
