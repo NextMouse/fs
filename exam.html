@@ -810,6 +810,64 @@
             margin-right: 20px;
         }
 
+        .ai-message.assistant h5 {
+            margin: 15px 0 8px 0;
+            color: #007bff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .ai-message.assistant h6 {
+            margin: 12px 0 6px 0;
+            color: #495057;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .ai-message.assistant p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .ai-message.assistant ul,
+        .ai-message.assistant ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .ai-message.assistant li {
+            margin: 4px 0;
+            line-height: 1.4;
+        }
+
+        .ai-message.assistant blockquote {
+            border-left: 3px solid #007bff;
+            margin: 8px 0;
+            padding: 6px 12px;
+            background: #f1f3f4;
+            color: #495057;
+            font-style: italic;
+        }
+
+        .ai-message.assistant pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 8px 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .ai-message.assistant code {
+            background: #f1f3f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
         .ai-message.loading {
             background: #fff3cd;
             border-left: 3px solid #ffc107;
@@ -1297,6 +1355,65 @@
             .loading-text {
                 font-size: 14px;
             }
+
+            /* 移动端AI追问区域优化 */
+            .ai-follow-up {
+                margin-top: 15px;
+                padding-top: 12px;
+            }
+
+            .ai-input-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+
+            .ai-input {
+                min-height: 40px;
+                font-size: 14px;
+            }
+
+            .ai-send-btn {
+                width: 100%;
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+
+            .ai-conversation {
+                max-height: 150px;
+            }
+
+            .ai-message {
+                padding: 8px;
+                font-size: 12px;
+                margin-bottom: 8px;
+            }
+
+            .ai-message.assistant h5 {
+                font-size: 13px;
+                margin: 12px 0 6px 0;
+            }
+
+            .ai-message.assistant h6 {
+                font-size: 12px;
+                margin: 10px 0 5px 0;
+            }
+
+            .ai-message.assistant p {
+                margin: 6px 0;
+                font-size: 12px;
+            }
+
+            .ai-message.assistant ul,
+            .ai-message.assistant ol {
+                margin: 6px 0;
+                padding-left: 15px;
+            }
+
+            .ai-message.assistant li {
+                margin: 3px 0;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
@@ -1717,7 +1834,8 @@
                 aiAnalysis.classList.remove('show');
                 aiAnalysisBtn.textContent = '🤖 AI解析';
                 delete aiAnalysis.dataset.generated;
-                // 隐藏追问区域
+
+                // 追问区域在显示AI解析时才会显示，这里先隐藏
                 aiFollowUp.style.display = 'none';
 
                 // 移除滚动条
@@ -2321,7 +2439,10 @@
 
                         // 显示追问区域和对话历史
                         document.getElementById('aiFollowUp').style.display = 'block';
-                        displayAIConversation();
+                        if (examData[currentQuestionIndex].aiConversation &&
+                            examData[currentQuestionIndex].aiConversation.length > 0) {
+                            displayAIConversation();
+                        }
                     } else {
                         // 如果还没有生成过解析，则生成
                         if (!aiAnalysis.dataset.generated) {
@@ -2397,20 +2518,7 @@
                         const aiResponse = data.choices[0].message.content;
 
                         // 格式化AI响应
-                        const formattedResponse = aiResponse
-                            .split('\n')
-                            .map(line => line.trim())
-                            .filter(line => line.length > 0)
-                            .map(line => {
-                                if (line.startsWith('1.') || line.startsWith('2.') || line.startsWith('3.') || line.startsWith('4.') || line.startsWith('5.')) {
-                                    return `<h5 style="color: #007bff; margin: 15px 0 8px 0;">${line}</h5>`;
-                                } else if (line.startsWith('•') || line.startsWith('-')) {
-                                    return `<div style="margin: 8px 0; padding-left: 20px;">${line}</div>`;
-                                } else {
-                                    return `<p style="margin: 8px 0;">${line}</p>`;
-                                }
-                            })
-                            .join('');
+                        const formattedResponse = formatAIResponse(aiResponse);
 
                         aiAnalysisContent.innerHTML = formattedResponse;
 
@@ -2420,13 +2528,13 @@
                         // 保存到题目对象并持久化，供下次直接使用
                         examData[currentQuestionIndex].aiAnalysisHtml = formattedResponse;
 
-                        // 显示追问区域
-                        document.getElementById('aiFollowUp').style.display = 'block';
-
                         // 初始化对话历史
                         if (!examData[currentQuestionIndex].aiConversation) {
                             examData[currentQuestionIndex].aiConversation = [];
                         }
+
+                        // 显示追问区域
+                        document.getElementById('aiFollowUp').style.display = 'block';
 
                         saveExamState();
                         showToast('AI解析生成完成！', 'success');
@@ -2529,8 +2637,11 @@
                         // 移除加载消息
                         removeAIMessage(loadingId);
 
-                        // 添加AI回复
-                        addAIMessage('assistant', aiResponse);
+                        // 格式化AI回复内容
+                        const formattedResponse = formatAIResponse(aiResponse);
+
+                        // 添加AI回复（使用格式化后的内容）
+                        addAIMessage('assistant', formattedResponse);
 
                         // 保存对话历史
                         if (!examData[currentQuestionIndex].aiConversation) {
@@ -2538,9 +2649,11 @@
                         }
                         examData[currentQuestionIndex].aiConversation.push(
                             { role: 'user', content: message },
-                            { role: 'assistant', content: aiResponse }
+                            { role: 'assistant', content: formattedResponse, isFormatted: true }
                         );
                         saveExamState();
+
+                        // 追问区域已经在显示AI解析时显示了，这里不需要额外处理
 
                         showToast('AI回复已发送', 'success');
                     } else {
@@ -2567,7 +2680,14 @@
                 const messageId = 'msg_' + Date.now() + '_' + Math.random();
                 messageDiv.id = messageId;
                 messageDiv.className = `ai-message ${role}`;
-                messageDiv.textContent = content;
+
+                // 根据角色决定是否使用HTML内容
+                if (role === 'assistant') {
+                    messageDiv.innerHTML = content;
+                } else {
+                    messageDiv.textContent = content;
+                }
+
                 aiConversation.appendChild(messageDiv);
 
                 // 滚动到底部
@@ -2592,8 +2712,150 @@
                 aiConversation.innerHTML = '';
 
                 conversation.forEach(msg => {
+                    // 对于AI助手的回复，需要检查是否已经格式化过
+                    if (msg.role === 'assistant' && !msg.isFormatted) {
+                        // 如果还没有格式化过，进行格式化
+                        const formattedContent = formatAIResponse(msg.content);
+                        // 更新对话历史中的内容为格式化后的内容
+                        msg.content = formattedContent;
+                        msg.isFormatted = true;
+                    }
                     addAIMessage(msg.role, msg.content);
                 });
+            }
+
+            // 格式化AI响应内容（支持Markdown）
+            function formatAIResponse(response) {
+                // 预处理：处理代码块
+                response = response.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                    return `<pre style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin: 10px 0; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 13px;"><code>${code.trim()}</code></pre>`;
+                });
+
+                // 预处理：处理行内代码
+                response = response.replace(/`([^`]+)`/g, '<code style="background: #f1f3f4; padding: 2px 4px; border-radius: 3px; font-family: monospace; font-size: 13px;">$1</code>');
+
+                const lines = response.split('\n');
+                let formattedLines = [];
+                let inList = false;
+                let inCodeBlock = false;
+                let currentListType = '';
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const trimmedLine = line.trim();
+
+                    // 跳过空行
+                    if (trimmedLine.length === 0) {
+                        if (inList) {
+                            formattedLines.push('</ul>');
+                            inList = false;
+                        }
+                        continue;
+                    }
+
+                    // 处理Markdown标题
+                    if (trimmedLine.startsWith('#')) {
+                        if (inList) {
+                            formattedLines.push('</ul>');
+                            inList = false;
+                        }
+                        const level = trimmedLine.match(/^#+/)[0].length;
+                        const title = trimmedLine.replace(/^#+\s*/, '');
+                        const color = level === 1 ? '#007bff' : level === 2 ? '#495057' : '#6c757d';
+                        const fontSize = level === 1 ? '18px' : level === 2 ? '16px' : '14px';
+                        const margin = level === 1 ? '20px 0 10px 0' : level === 2 ? '15px 0 8px 0' : '12px 0 6px 0';
+                        formattedLines.push(`<h${level} style="color: ${color}; margin: ${margin}; font-weight: 600; font-size: ${fontSize};">${title}</h${level}>`);
+                    }
+                    // 处理数字编号标题
+                    else if (/^\d+\./.test(trimmedLine)) {
+                        if (inList) {
+                            formattedLines.push('</ul>');
+                            inList = false;
+                        }
+                        formattedLines.push(`<h5 style="color: #007bff; margin: 15px 0 8px 0; font-weight: 600;">${trimmedLine}</h5>`);
+                    }
+                    // 处理中文编号标题
+                    else if (/^[一二三四五六七八九十]+、/.test(trimmedLine)) {
+                        if (inList) {
+                            formattedLines.push('</ul>');
+                            inList = false;
+                        }
+                        formattedLines.push(`<h6 style="color: #495057; margin: 12px 0 6px 0; font-weight: 500;">${trimmedLine}</h6>`);
+                    }
+                    // 处理无序列表
+                    else if (/^[\s]*[-*+]\s/.test(line)) {
+                        if (!inList || currentListType !== 'ul') {
+                            if (inList) formattedLines.push('</ul>');
+                            formattedLines.push('<ul style="margin: 8px 0; padding-left: 20px;">');
+                            inList = true;
+                            currentListType = 'ul';
+                        }
+                        const listItem = line.replace(/^[\s]*[-*+]\s*/, '');
+                        formattedLines.push(`<li style="margin: 4px 0; line-height: 1.5;">${processInlineMarkdown(listItem)}</li>`);
+                    }
+                    // 处理有序列表
+                    else if (/^[\s]*\d+\.\s/.test(line)) {
+                        if (!inList || currentListType !== 'ol') {
+                            if (inList) formattedLines.push('</ul>');
+                            formattedLines.push('<ol style="margin: 8px 0; padding-left: 20px;">');
+                            inList = true;
+                            currentListType = 'ol';
+                        }
+                        const listItem = line.replace(/^[\s]*\d+\.\s*/, '');
+                        formattedLines.push(`<li style="margin: 4px 0; line-height: 1.5;">${processInlineMarkdown(listItem)}</li>`);
+                    }
+                    // 处理引用块
+                    else if (trimmedLine.startsWith('>')) {
+                        if (inList) {
+                            formattedLines.push('</ul>');
+                            inList = false;
+                        }
+                        const quote = trimmedLine.replace(/^>\s*/, '');
+                        formattedLines.push(`<blockquote style="border-left: 4px solid #007bff; margin: 10px 0; padding: 8px 15px; background: #f8f9fa; color: #495057;">${processInlineMarkdown(quote)}</blockquote>`);
+                    }
+                    // 处理分割线
+                    else if (/^[\s]*[-*_]{3,}[\s]*$/.test(trimmedLine)) {
+                        if (inList) {
+                            formattedLines.push('</ul>');
+                            inList = false;
+                        }
+                        formattedLines.push('<hr style="margin: 15px 0; border: none; border-top: 1px solid #e9ecef;">');
+                    }
+                    // 处理普通段落
+                    else {
+                        if (inList) {
+                            formattedLines.push('</ul>');
+                            inList = false;
+                        }
+                        formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${processInlineMarkdown(trimmedLine)}</p>`);
+                    }
+                }
+
+                // 确保列表正确关闭
+                if (inList) {
+                    formattedLines.push('</ul>');
+                }
+
+                return formattedLines.join('');
+            }
+
+            // 处理行内Markdown格式
+            function processInlineMarkdown(text) {
+                // 处理粗体
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                text = text.replace(/__(.*?)__/g, '<strong>$1</strong>');
+
+                // 处理斜体
+                text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                text = text.replace(/_(.*?)_/g, '<em>$1</em>');
+
+                // 处理删除线
+                text = text.replace(/~~(.*?)~~/g, '<del style="text-decoration: line-through;">$1</del>');
+
+                // 处理行内代码（避免与代码块冲突）
+                text = text.replace(/`([^`]+)`/g, '<code style="background: #f1f3f4; padding: 2px 4px; border-radius: 3px; font-family: monospace; font-size: 13px;">$1</code>');
+
+                return text;
             }
 
             // 处理AI输入框键盘事件
@@ -2637,13 +2899,34 @@
                 }
             }
 
-            // 生成随机题目（基于答错次数权重）
+            // 生成随机题目（基于答错次数和答题状态权重）
             function generateRandomQuestions(count) {
                 const questions = [];
                 const availableQuestions = [...examData];
 
-                // 计算权重（答错次数越多，权重越高）
-                const weights = availableQuestions.map(q => (q.wrongCount || 0) + 1);
+                // 计算权重：错题和未答题权重更高，错误次数越多权重越高
+                const weights = availableQuestions.map((q, index) => {
+                    const questionIndex = examData.findIndex(examQ => examQ.num === q.num);
+                    const isAnswered = answeredQuestions.has(questionIndex);
+                    const isCorrect = isAnswered && isAnswerCorrect(q);
+                    const wrongCount = q.wrongCount || 0;
+
+                    let weight = 1; // 基础权重
+
+                    if (!isAnswered) {
+                        // 未答题：权重为10
+                        weight = 10;
+                    } else if (!isCorrect) {
+                        // 答错的题：基础权重5 + 错误次数 * 3
+                        weight = 5 + (wrongCount * 3);
+                    } else {
+                        // 答对的题：基础权重1 + 错误次数 * 2（如果之前有答错记录）
+                        weight = 1 + (wrongCount * 2);
+                    }
+
+                    return weight;
+                });
+
                 let totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
 
                 for (let i = 0; i < count && availableQuestions.length > 0; i++) {
@@ -2838,6 +3121,10 @@
                 if (mainQuestionIndex !== -1) {
                     const mainQuestion = examData[mainQuestionIndex];
 
+                    // 检查之前是否已经答过这道题
+                    const wasAnsweredBefore = answeredQuestions.has(mainQuestionIndex);
+                    const wasCorrectBefore = wasAnsweredBefore && isAnswerCorrect(mainQuestion);
+
                     // 更新用户答案
                     mainQuestion.userAnswer = userAnswer ? [userAnswer] : [];
 
@@ -2846,25 +3133,25 @@
 
                     // 更新统计计数
                     if (isCorrect) {
-                        // 如果之前没有答过或者之前答错了，现在答对了
-                        if (!answeredQuestions.has(mainQuestionIndex) ||
-                            (mainQuestion.userAnswer && !isAnswerCorrect(mainQuestion))) {
+                        if (!wasAnsweredBefore) {
+                            // 第一次答对
                             correctCount++;
-                            // 如果之前答错了，现在答对了，需要减少错误计数
-                            if (answeredQuestions.has(mainQuestionIndex) &&
-                                mainQuestion.userAnswer && !isAnswerCorrect(mainQuestion)) {
-                                incorrectCount--;
-                            }
+                        } else if (!wasCorrectBefore) {
+                            // 之前答错了，现在答对了
+                            correctCount++;
+                            incorrectCount--;
                         }
+                        // 如果之前就答对了，现在又答对了，不需要改变计数
                     } else {
-                        // 答错了
-                        if (!answeredQuestions.has(mainQuestionIndex)) {
+                        if (!wasAnsweredBefore) {
+                            // 第一次答错
                             incorrectCount++;
-                        } else if (mainQuestion.userAnswer && isAnswerCorrect(mainQuestion)) {
-                            // 如果之前答对了，现在答错了
+                        } else if (wasCorrectBefore) {
+                            // 之前答对了，现在答错了
                             correctCount--;
                             incorrectCount++;
                         }
+                        // 如果之前就答错了，现在又答错了，不需要改变计数
 
                         // 记录答错次数
                         if (!mainQuestion.wrongCount) {
