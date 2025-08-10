@@ -661,13 +661,18 @@
             text-align: center;
             color: #6c757d;
             padding: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .ai-loading {
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 20px;
+            text-align: center;
         }
 
         .loading-spinner {
@@ -684,6 +689,8 @@
             font-size: 16px;
             font-weight: 500;
             text-align: center;
+            display: block;
+            width: 100%;
         }
 
 
@@ -1348,6 +1355,8 @@
 
             .ai-loading {
                 gap: 15px;
+                justify-content: center;
+                align-items: center;
             }
 
 
@@ -1474,7 +1483,12 @@
 
                     <div class="ai-analysis" id="aiAnalysis" style="display: none;">
                         <div class="ai-analysis-content" id="aiAnalysisContent">
-                            <div class="loading">正在生成AI解析...</div>
+                            <div class="loading">
+                                <div class="ai-loading">
+                                    <div class="loading-spinner"></div>
+                                    <div class="loading-text">正在生成AI解析...</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- AI追问区域 -->
