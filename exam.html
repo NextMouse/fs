@@ -2737,10 +2737,10 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': 'Bearer sk-db27d16bfd194749b392e7dddb2cf0c5'
+                            'Authorization': 'Bearer sk-0892a660de854b798ebe659c0e800875'
                         },
                         body: JSON.stringify({
-                            model: "deepseek-chat",
+                            model: "deepseek-reasoner",
                             messages: messages,
                             temperature: 0.7,
                             max_tokens: 800
@@ -3491,17 +3491,43 @@
                 navOverlay.classList.remove('show');
             }
 
+            // 根据视口高度自适应答题窗口高度
+            function adjustQuestionContainerHeight() {
+                const questionContainer = document.getElementById('questionContainer');
+                if (!questionContainer) return;
+
+                // 计算从答题容器顶部到视口底部的可用高度
+                const rect = questionContainer.getBoundingClientRect();
+                const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+                // 预留一个底部间距，避免紧贴底部
+                const bottomGap = 20;
+                const availableHeight = Math.max(360, viewportHeight - rect.top - bottomGap);
+
+                // 设置容器高度为可用高度
+                questionContainer.style.height = availableHeight + 'px';
+
+                // 根据底部按钮实际高度动态设置容器底部内边距，避免内容被按钮遮挡
+                const buttons = questionContainer.querySelector('.buttons');
+                if (buttons) {
+                    const buttonsHeight = buttons.getBoundingClientRect().height || 0;
+                    questionContainer.style.paddingBottom = (buttonsHeight + 20) + 'px';
+                }
+            }
+
             // 页面加载完成后执行
             document.addEventListener('DOMContentLoaded', function () {
                 loadExamData();
                 initNavButtonState();
                 adjustMobileButtons();
+                adjustQuestionContainerHeight();
             });
 
-            // 窗口大小改变时重新初始化按钮状态
+            // 窗口大小改变时重新初始化按钮状态并自适应高度
             window.addEventListener('resize', function () {
                 initNavButtonState();
                 adjustMobileButtons();
+                adjustQuestionContainerHeight();
             });
 
             // 调整移动端按钮布局
