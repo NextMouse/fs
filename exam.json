@@ -5569,7 +5569,7 @@
         "optionMap": [
             {
                 "A": "原子性(atomicity)",
-                "B": "-致性(consistency)",
+                "B": "一致性(consistency)",
                 "C": "隔离性(isolation)",
                 "D": "持久性(durability)"
             }
@@ -13701,6 +13701,7 @@
         "typeName": "判断题"
     }
 ]
+
 
 
 
