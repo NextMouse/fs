@@ -7199,8 +7199,9 @@
         "optionMap": [
             {
                 "A": "DataNode",
-                "B": "HDFSMapReduce",
-                "C": "Hive"
+                "B": "HDFS",
+                "C": "MapReduce",
+                "D": "Hive"
             }
         ],
         "topic": "Hadoop 中，()是大规模数据集的并行计算框架。",
@@ -13704,6 +13705,7 @@
         "typeName": "判断题"
     }
 ]
+
 
 
 
